@@ -13,7 +13,7 @@ der_funcao_ativacao <- function(y) {
 }
 
 # Arquitetura do Autoencoder
-arquitetura <- function(num_entrada, num_escondida,
+autoencoder.arquitetura <- function(num_entrada, num_escondida,
                         funcao_ativacao, der_funcao_ativacao) {
   arq <- list()
 
@@ -39,7 +39,7 @@ arquitetura <- function(num_entrada, num_escondida,
 }
 
 # Reconstrucao
-mlp.reconstruir <- function(arq, exemplo) {
+autoencoder.reconstruir <- function(arq, exemplo) {
   v_escondida <- arq$pesos_escondida %*% as.numeric(c(exemplo, 1))
   y_escondida <- arq$funcao_ativacao(v_escondida)
 
@@ -56,7 +56,7 @@ mlp.reconstruir <- function(arq, exemplo) {
 }
 
 # Back Propagation
-mlp.retropropagacao <- function(arq, dados, n, limiar) {
+autoencoder.retropropagacao <- function(arq, dados, n, limiar) {
   entropia_cruzada <- 2 * limiar
   entropia_cruzada_anterior <- 0
   epocas <- 0
@@ -110,7 +110,7 @@ mlp.retropropagacao <- function(arq, dados, n, limiar) {
   return(retorno)
 }
 
-mlp.testa.digitos <- function(modelo,
+autoencoder.testa.digitos <- function(modelo,
                               caminho.mnist,
                               digitos = c(1, 3, 4, 7, 9),
                               taxa.ruido = 0.1) {
