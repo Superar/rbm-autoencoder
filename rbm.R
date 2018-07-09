@@ -1,4 +1,4 @@
-source('utils')
+source('utils.R')
 
 # Função de ativação
 funcao.ativacao <- function(v) {
@@ -17,7 +17,7 @@ sample.bernoulli <- function(p) {
 }
 
 # Função para construir a arquitetura
-arquitetura <- function(num.visiveis, num.escondidos, n, funcao.ativacao) {
+rbm.arquitetura <- function(num.visiveis, num.escondidos, n, funcao.ativacao) {
     arq <- list()
     # Parametros da rede
     arq$num.visiveis <- num.visiveis
@@ -44,15 +44,16 @@ arquitetura <- function(num.visiveis, num.escondidos, n, funcao.ativacao) {
 }
 
 # Função para a execução do algoritmo contrastive divergence
-contrastive.divergence <- function(exemplos, arq, K, epocas) {
+rbm.contrastive.divergence <- function(exemplos, arq, K, epocas) {
     
     cat("\n\nContrastive Divergence... \n")
 
     # Para cada epoca
     for(i in 1:epocas){
+        cat("Época: ", i, "\n===========================\n\n")
         # Para cada exemplo
-        for(j in 1:length(exemplos)){
-            x <- exemplos[[j]]
+        for(j in 1:nrow(exemplos)){
+            x <- exemplos[j,]
 
             bernoulli.p.x.h <- x 
 
@@ -88,7 +89,7 @@ contrastive.divergence <- function(exemplos, arq, K, epocas) {
 }
 
 # Reconstrução
-reconstrucao <- function(modelo, padrao) {
+rbm.reconstrucao <- function(modelo, padrao) {
     #p (h|x)
     v.h.x <- cbind(modelo$visivel.escondida, arq$bias.escondida) %*% c(padrao,1)
     p.h.x <- as.numeric(modelo$funcao.ativacao(v.h.x))
@@ -102,11 +103,57 @@ reconstrucao <- function(modelo, padrao) {
     return(bernoulli.p.x.h)
 }
 
-# carrega.digitos(digitos=c(0,1,2,3,4,5,6,7,8,9), 100, 1, 0.5)
+rbm.testa.digitos <- function(modelo,
+                              caminho.mnist,
+                              digitos = c(1, 3, 4, 7, 9),
+                              taxa.ruido = 0.1){
 
-# arq <- arquitetura(length(padroes[[1]]), length(padroes[[1]])-1, 0.2, funcao.ativacao)
+	# Carrega digitos de teste
+    digitos.teste <- carrega.digitos(caminho.mnist, digitos, 1, 0, taxa.ruido)
+	
+	plotdim = 2*orgdim
+	plot(c(1,(plotdim[1] + 5) * length(digitos)),
+         c(1,(plotdim[2] + 5) * 3), 
+         type="n", xlab="", ylab="")
+	x = 1
 
-# modelo <- contrastive.divergence(padroes, arq, 1, 10)
+	for (i in 1:nrow(digitos.teste)) {
+		padrao <- digitos.teste[i, ]
 
-# testa.digitos(modelo)
+		ruido = (runif(length(padrao), 0, 1) > taxa.ruido ) * 1	
+		entrada = padrao * ruido
+		ret <- rbm.reconstrucao(modelo,entrada)
+
+		# Padrao original
+		img <- padrao; 
+		dim(img) <- orgdim
+		image <- as.raster((img+1)/2)
+		rasterImage(image, x, 1, x + plotdim[1], plotdim[2], interpolate=F)
+
+		# Entrada com ruido
+		img <- entrada; 
+		dim(img) <- orgdim
+		image <- as.raster((img+1)/2)
+		rasterImage(image, x, 1+(plotdim[2]+5), x + plotdim[1],
+		            1+2*(plotdim[2]+5), interpolate=F)
+
+		# Imagem recuperada
+		img <- ret; 
+		dim(img) <- orgdim
+		image <- as.raster((img+1)/2)
+		rasterImage(image, x, 1+2*(plotdim[2]+5), x + plotdim[1],
+		            1+2*(plotdim[2]+5)+plotdim[2], interpolate=F)
+
+		x = x + plotdim[1]+5
+	}
+}
+
+
+padroes <- carrega.digitos('./mnist_png', digitos=c(1, 3, 4, 7, 9), 100, 1, 0.5)
+
+arq <- rbm.arquitetura(length(padroes[1,]), length(padroes[1,])-1, 0.2, funcao.ativacao)
+
+modelo <- rbm.contrastive.divergence(padroes, arq, 1, 100)
+
+rbm.testa.digitos(modelo, './mnist_png', c(1, 3, 4, 7, 9), 0.1)
 
