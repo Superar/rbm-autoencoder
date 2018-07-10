@@ -91,7 +91,7 @@ rbm.contrastive.divergence <- function(exemplos, arq, K, epocas) {
 # Reconstrução
 rbm.reconstrucao <- function(modelo, padrao) {
     #p (h|x)
-    v.h.x <- cbind(modelo$visivel.escondida, arq$bias.escondida) %*% c(padrao,1)
+    v.h.x <- cbind(modelo$visivel.escondida, modelo$bias.escondida) %*% c(padrao,1)
     p.h.x <- as.numeric(modelo$funcao.ativacao(v.h.x))
     bernoulli.p.h.x <- unlist(lapply(p.h.x, sample.bernoulli))
 
@@ -131,7 +131,7 @@ rbm.testa.digitos <- function(modelo,
 		rasterImage(image, x, 1, x + plotdim[1], plotdim[2], interpolate=F)
 
 		# Entrada com ruido
-		img <- entrada; 
+		img <- entrada;
 		dim(img) <- orgdim
 		image <- as.raster((img+1)/2)
 		rasterImage(image, x, 1+(plotdim[2]+5), x + plotdim[1],
@@ -148,7 +148,7 @@ rbm.testa.digitos <- function(modelo,
 	}
 }
 
-rbm.teste <- function(qtd, taxa.ruido){
+rbm.teste <- function(qtd, taxa.ruido, epocas){
     padroes <- carrega.digitos('./mnist_png', digitos=c(1, 3, 4, 7, 9), qtd, 1)
 
     arq <- rbm.arquitetura(length(padroes[1,]), length(padroes[1,])-1, 0.2, funcao.ativacao)
@@ -157,12 +157,22 @@ rbm.teste <- function(qtd, taxa.ruido){
     old <- Sys.time()
 
     # Realiza o treinamento e o teste
-    modelo <- rbm.contrastive.divergence(padroes, arq, 1, 100)
+    modelo <- rbm.contrastive.divergence(padroes, arq, 1, epocas)
+
+    name = paste("./resultados/rbm_qtd", qtd, "_ruido", taxa.ruido, ".png", sep='')
+    cat(name)
+    png(filename=name)
+
     rbm.testa.digitos(modelo, './mnist_png', c(1, 3, 4, 7, 9), taxa.ruido)
+    
+    dev.off()
 
     # Calcula o tempo decorrido
     new <- Sys.time() - old
     print(new)
 }
 
-# rbm.teste(qtd=10, taxa.ruido=0.1)
+# rbm.teste(qtd=100, taxa.ruido=0.1, 100)
+# rbm.teste(qtd=100, taxa.ruido=0.3, 100)
+# rbm.teste(qtd=100, taxa.ruido=0.5, 100)
+
