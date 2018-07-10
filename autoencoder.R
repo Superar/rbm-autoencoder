@@ -56,12 +56,12 @@ autoencoder.reconstruir <- function(arq, exemplo) {
 }
 
 # Back Propagation
-autoencoder.retropropagacao <- function(arq, dados, n, limiar) {
+autoencoder.retropropagacao <- function(arq, dados, n, limiar, max.epocas=100) {
   entropia_cruzada <- 2 * limiar
   entropia_cruzada_anterior <- 0
   epocas <- 0
 
-  while (abs(entropia_cruzada - entropia_cruzada_anterior) > limiar) {
+  while (abs(entropia_cruzada - entropia_cruzada_anterior) > limiar && epocas < max.epocas) {
     entropia_cruzada_anterior <- entropia_cruzada
     entropia_cruzada <- 0
 
@@ -71,16 +71,12 @@ autoencoder.retropropagacao <- function(arq, dados, n, limiar) {
         x <- dados[i, ]
 
         # Saida da rede
-        resultado <- mlp.reconstruir(arq, x)
+        resultado <- autoencoder.reconstruir(arq, x)
         y <- resultado$y_saida
 
         # Erro
         erro <- x - y
 
-        entropia <- (1 - x) * log(1 - y)
-        if (any(is.nan(entropia))) {
-           print(i)
-        }
         entropia_cruzada <- entropia_cruzada + -sum((x * log(y) + (1 - x) * log(1 - y)))
 
         # Gradiente local dos neuronios de saida
@@ -100,7 +96,60 @@ autoencoder.retropropagacao <- function(arq, dados, n, limiar) {
     } # Fim da epoca
 
     entropia_cruzada <- entropia_cruzada / nrow(dados)
-    print(entropia_cruzada)
+    epocas <- epocas + 1
+  }
+
+  retorno <- list()
+  retorno$arq <- arq
+  retorno$epocas <- epocas
+  return(retorno)
+}
+
+# Back Propagation
+denoising.autoencoder.retropropagacao <- function(arq,
+                                                  dados, taxa.ruido,
+                                                  n, limiar, max.epocas=100) {
+  entropia_cruzada <- 2 * limiar
+  entropia_cruzada_anterior <- 0
+  epocas <- 0
+
+  while (abs(entropia_cruzada - entropia_cruzada_anterior) > limiar && epocas < max.epocas) {
+    entropia_cruzada_anterior <- entropia_cruzada
+    entropia_cruzada <- 0
+
+    # Epoch
+    for (i in 1:nrow(dados)) {
+        # Dados de treinamento
+        padrao <- dados[i, ]
+        ruido <- (runif(length(padrao), 0, 1) > taxa.ruido) * 1
+        x <- padrao * ruido
+
+        # Saida da rede
+        resultado <- autoencoder.reconstruir(arq, x)
+        y <- resultado$y_saida
+
+        # Erro
+        erro <- padrao - y
+
+        entropia_cruzada <- entropia_cruzada + -sum((padrao * log(y) + (1 - padrao) * log(1 - y)))
+
+        # Gradiente local dos neuronios de saida
+        grad_local_saida <- erro * arq$der_funcao_ativacao(y)
+
+        # Gradiente local dos neuronios escondidos
+        pesos_saida <- arq$pesos_saida[, 1:arq$num_escondida] # Ignorar bias
+        grad_local_escondida <- t(arq$der_funcao_ativacao(resultado$y_escondida)) *
+                                (t(grad_local_saida) %*% pesos_saida)
+
+        # Ajuste dos pesos
+        arq$pesos_saida <- arq$pesos_saida + n *
+                           (grad_local_saida %*% c(resultado$y_escondida, 1))
+        # Neuronios escondidos
+        arq$pesos_escondida <- arq$pesos_escondida + n *
+                               (t(grad_local_escondida) %*% as.numeric(c(x, 1)))
+    } # Fim da epoca
+
+    entropia_cruzada <- entropia_cruzada / nrow(dados)
     epocas <- epocas + 1
   }
 
@@ -128,7 +177,7 @@ autoencoder.testa.digitos <- function(modelo,
 
     ruido <- (runif(length(padrao), 0, 1) > taxa.ruido) * 1
     entrada <- padrao * ruido
-    resultado <- mlp.reconstruir(modelo$arq, entrada)
+    resultado <- autoencoder.reconstruir(modelo$arq, entrada)
     y <- resultado$y_saida
     y <- as.vector(ifelse(y >= 0.5, 1, 0))
 
@@ -156,4 +205,71 @@ autoencoder.testa.digitos <- function(modelo,
 
     x <- x + plotdim[1] + 5
   }
+}
+
+autoencoder.teste <- function(qtd, n.escondida, taxa.ruido, epocas=100){
+    padroes <- carrega.digitos("./mnist_png", digitos = c(1, 3, 4, 7, 9),
+                               qtd, 1)
+
+    arq <- autoencoder.arquitetura(dim(padroes)[2],
+                           dim(padroes)[2] + n.escondida,
+                           funcao_ativacao, der_funcao_ativacao)
+
+    # Registra o tempos antes de executar o treinamento e o teste
+    old <- Sys.time()
+
+    # Realiza o treinamento e o teste
+    modelo <- autoencoder.retropropagacao(arq, padroes, 0.2, 0.001, epocas)
+
+    name = paste("./resultados/autoencoder_qtd", qtd,
+                 "_escondida", n.escondida,
+                 "_ruido", taxa.ruido, ".png", sep = "")
+    cat(name)
+    png(filename = name)
+
+    autoencoder.testa.digitos(modelo,
+                              "./mnist_png",
+                              c(1, 3, 4, 7, 9),
+                              taxa.ruido)
+
+    dev.off()
+
+    # Calcula o tempo decorrido
+    new <- Sys.time() - old
+    print(new)
+}
+
+denoising.autoencoder.teste <- function(qtd,
+                                        n.escondida,
+                                        taxa.ruido,
+                                        epocas=100){
+    padroes <- carrega.digitos("./mnist_png", digitos = c(1, 3, 4, 7, 9),
+                               qtd, 1)
+
+    arq <- autoencoder.arquitetura(dim(padroes)[2],
+                           dim(padroes)[2] + n.escondida,
+                           funcao_ativacao, der_funcao_ativacao)
+
+    # Registra o tempos antes de executar o treinamento e o teste
+    old <- Sys.time()
+
+    # Realiza o treinamento e o teste
+    modelo <- denoising.autoencoder.retropropagacao(arq, padroes, 0.2, 0.001, epocas)
+
+    name = paste("./resultados/denoisingautoencoder_qtd", qtd,
+                 "_escondida", n.escondida,
+                 "_ruido", taxa.ruido, ".png", sep = "")
+    cat(name)
+    png(filename = name)
+
+    autoencoder.testa.digitos(modelo,
+                              "./mnist_png",
+                              c(1, 3, 4, 7, 9),
+                              taxa.ruido)
+
+    dev.off()
+
+    # Calcula o tempo decorrido
+    new <- Sys.time() - old
+    print(new)
 }
