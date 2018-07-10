@@ -2,8 +2,9 @@ library(png)
 
 # Carrega os digitos da base MNIST
 carrega.digitos <- function(caminho,
-                            digitos = c(1, 3, 4, 7, 9), quantidade = 100,
-                            treino = 1, taxa.ruido = 0.1) {
+                            digitos = c(1, 3, 4, 7, 9),
+                            quantidade = 100,
+                            treino = 1) {
     padroes <- list()
     orgdim <<- NULL
 

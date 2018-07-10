@@ -114,7 +114,7 @@ mlp.testa.digitos <- function(modelo,
                               caminho.mnist,
                               digitos = c(1, 3, 4, 7, 9),
                               taxa.ruido = 0.1) {
-  digitos.teste <- carrega.digitos(caminho.mnist, digitos, 1, 0, taxa.ruido)
+  digitos.teste <- carrega.digitos(caminho.mnist, digitos, 1, 0)
 
   plotdim <- 2 * orgdim
   plot(c(1, (plotdim[1] + 5) * length(digitos)),

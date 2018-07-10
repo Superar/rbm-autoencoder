@@ -109,7 +109,7 @@ rbm.testa.digitos <- function(modelo,
                               taxa.ruido = 0.1){
 
 	# Carrega digitos de teste
-    digitos.teste <- carrega.digitos(caminho.mnist, digitos, 1, 0, taxa.ruido)
+    digitos.teste <- carrega.digitos(caminho.mnist, digitos, 1, 0)
 	
 	plotdim = 2*orgdim
 	plot(c(1,(plotdim[1] + 5) * length(digitos)),
@@ -148,12 +148,21 @@ rbm.testa.digitos <- function(modelo,
 	}
 }
 
+rbm.teste <- function(qtd, taxa.ruido){
+    padroes <- carrega.digitos('./mnist_png', digitos=c(1, 3, 4, 7, 9), qtd, 1)
 
-padroes <- carrega.digitos('./mnist_png', digitos=c(1, 3, 4, 7, 9), 100, 1, 0.5)
+    arq <- rbm.arquitetura(length(padroes[1,]), length(padroes[1,])-1, 0.2, funcao.ativacao)
 
-arq <- rbm.arquitetura(length(padroes[1,]), length(padroes[1,])-1, 0.2, funcao.ativacao)
+    # Registra o tempos antes de executar o treinamento e o teste
+    old <- Sys.time()
 
-modelo <- rbm.contrastive.divergence(padroes, arq, 1, 100)
+    # Realiza o treinamento e o teste
+    modelo <- rbm.contrastive.divergence(padroes, arq, 1, 100)
+    rbm.testa.digitos(modelo, './mnist_png', c(1, 3, 4, 7, 9), taxa.ruido)
 
-rbm.testa.digitos(modelo, './mnist_png', c(1, 3, 4, 7, 9), 0.1)
+    # Calcula o tempo decorrido
+    new <- Sys.time() - old
+    print(new)
+}
 
+# rbm.teste(qtd=10, taxa.ruido=0.1)
